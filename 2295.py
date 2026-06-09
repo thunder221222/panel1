@@ -15,7 +15,7 @@ TOKEN = os.getenv("TOKEN") # Your main Discord user token
 if not TOKEN:
     print(" TOKEN environment variable not set.")
     exit(1)
-GROQ_API_KEY = "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"  # Replace with your Groq key
+GROQ_API_KEY = "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"  # Replace with your Groq key
 
 # ========== GLOBAL VARIABLES ==========
 client = discord.Client(self_bot=True)
@@ -243,7 +243,7 @@ Respond with only the pack message, no extra text."""
         )
         return resp.choices[0].message.content.strip()
     except:
-        return f" You opened a {pack_type} pack and got {pack_size} mysterious items"
+        await.message.channel.send("error")
 
 # ========== NUKE FUNCTION ==========
 async def nuke_server(guild_id, new_name="captured by supreme", description="This server has been taken", channel_prefix="fucked-", channel_count=10):
@@ -531,7 +531,7 @@ async def on_message(message):
         spam_tasks.clear()
         await message.channel.send(f" Stopped {count} spam task(s).")
 
-    elif cmd == ".check" and len(args) >= 2 and message.mentions:
+    elif cmd == ".mentioncheck" and len(args) >= 2 and message.mentions:
         user = message.mentions[0]
         try:
             limit = int(args[-1])
@@ -1215,14 +1215,6 @@ async def on_message(message):
             except Exception as e:
                 await message.channel.send(f" Error: {e}")
                 
-    elif cmd == ".anti" and len(args) == 1:
-        anti_target_channel = int(args[0])
-        await message.channel.send(f"Anti AFK monitoring channel {anti_target_channel}")
-
-    elif cmd == ".offanti":
-        anti_target_channel = None
-        await message.channel.send(" disabled ")
-
     elif cmd == ".spamall":
         # Parse arguments: [channel_id] [message] or [message] (current channel)
         target_channel_id = None
