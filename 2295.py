@@ -694,40 +694,71 @@ async def on_message(message):
             ch_id = int(args[0]); start = int(args[1]); end = int(args[2]) if len(args) > 2 else None
             async def count_loop():
                 i = start
-                while True:
-                    try:
-                        ch = client.get_channel(ch_id)
-                        if ch: await ch.send(str(i))
-                        i += 1
-                        if end and i > end: break
-                        await asyncio.sleep(1)
-                    except:
-                        await asyncio.sleep(2)
-            if ch_id in count_tasks: count_tasks[ch_id].cancel()
+                try:
+                    while True:
+                        if asyncio.current_task().cancelled():
+                            break
+                        try:
+                            ch = client.get_channel(ch_id)
+                            if ch: await ch.send(str(i))
+                            i += 1
+                            if end and i > end: break
+                            await asyncio.sleep(1)
+                        except:
+                            await asyncio.sleep(2)
+                except asyncio.CancelledError:
+                    print(f"Counting task for channel {ch_id} was cancelled")
+                    raise
+            if ch_id in count_tasks:
+                count_tasks[ch_id].cancel()
+                try:
+                    await count_tasks[ch_id]
+                except:
+                    pass
             count_tasks[ch_id] = asyncio.create_task(count_loop())
             await message.channel.send(f"Counting started in {ch_id} from {start}")
-        except:
-            await message.channel.send("Usage: .autocount <channel> <start> [end]")
-
+        except Exception as e:
+            await message.channel.send(f"Usage: .autocount <channel> <start> [end] (Error: {e})")
+    
     elif cmd == ".count" and len(args) == 2:
-        ch_id = int(args[0]); start = int(args[1])
-        async def cdown():
-            for i in range(start, 0, -1):
+        try:
+            ch_id = int(args[0]); start = int(args[1])
+            async def cdown():
                 try:
-                    ch = client.get_channel(ch_id)
-                    if ch: await ch.send(str(i))
-                    await asyncio.sleep(1)
+                    for i in range(start, 0, -1):
+                        if asyncio.current_task().cancelled():
+                            break
+                        try:
+                            ch = client.get_channel(ch_id)
+                            if ch: await ch.send(str(i))
+                            await asyncio.sleep(1)
+                        except:
+                            await asyncio.sleep(2)
+                except asyncio.CancelledError:
+                    print(f"Countdown task for channel {ch_id} was cancelled")
+                    raise
+            if ch_id in count_tasks:
+                count_tasks[ch_id].cancel()
+                try:
+                    await count_tasks[ch_id]
                 except:
-                    await asyncio.sleep(2)
-        if ch_id in count_tasks: count_tasks[ch_id].cancel()
-        count_tasks[ch_id] = asyncio.create_task(cdown())
-        await message.channel.send(f"Countdown started in {ch_id} from {start}")
-
+                    pass
+            count_tasks[ch_id] = asyncio.create_task(cdown())
+            await message.channel.send(f"Countdown started in {ch_id} from {start}")
+        except Exception as e:
+            await message.channel.send(f"Usage: .count <channel> <start> (Error: {e})")
+    
     elif cmd == ".stopac":
-        for tid in list(count_tasks.keys()):
-            count_tasks[tid].cancel()
-            del count_tasks[tid]
-        await message.channel.send("All counting tasks stopped")
+        if not count_tasks:
+            await message.channel.send("No active counting tasks.")
+            return
+        count = 0
+        for ch_id, task in list(count_tasks.items()):
+            if not task.done():
+                task.cancel()
+                count += 1
+        count_tasks.clear()
+        await message.channel.send(f"Stopped {count} counting task(s).")
 
     elif cmd == ".react" and len(args) >= 1:
         reaction_emojis = args  # store the emojis
