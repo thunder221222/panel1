@@ -696,19 +696,32 @@ async def on_message(message):
                 i = start
                 try:
                     while True:
+                        # Check for cancellation at the start of each iteration
                         if asyncio.current_task().cancelled():
+                            print(f"Count task for {ch_id} cancelled (check 1)")
                             break
                         try:
                             ch = client.get_channel(ch_id)
-                            if ch: await ch.send(str(i))
+                            if ch: 
+                                await ch.send(str(i))
                             i += 1
-                            if end and i > end: break
-                            await asyncio.sleep(1)
-                        except:
+                            if end and i > end: 
+                                break
+                            # Small delay with cancellation check after
+                            for _ in range(10):  # Break 1 second into 10 x 0.1s chunks
+                                if asyncio.current_task().cancelled():
+                                    print(f"Count task for {ch_id} cancelled (during delay)")
+                                    return
+                                await asyncio.sleep(0.1)
+                        except asyncio.CancelledError:
+                            print(f"Count task for {ch_id} caught CancelledError")
+                            raise
+                        except Exception as e:
+                            print(f"Count loop error: {e}")
                             await asyncio.sleep(2)
                 except asyncio.CancelledError:
-                    print(f"Counting task for channel {ch_id} was cancelled")
-                    raise
+                    print(f"Count task for {ch_id} finally cancelled")
+                    return
             if ch_id in count_tasks:
                 count_tasks[ch_id].cancel()
                 try:
@@ -718,7 +731,7 @@ async def on_message(message):
             count_tasks[ch_id] = asyncio.create_task(count_loop())
             await message.channel.send(f"Counting started in {ch_id} from {start}")
         except Exception as e:
-            await message.channel.send(f"Usage: .autocount <channel> <start> [end] (Error: {e})")
+            await message.channel.send(f"Usage: .autocount <channel> <start> [end]\nError: {e}")
     
     elif cmd == ".count" and len(args) == 2:
         try:
@@ -727,16 +740,25 @@ async def on_message(message):
                 try:
                     for i in range(start, 0, -1):
                         if asyncio.current_task().cancelled():
+                            print(f"Countdown task for {ch_id} cancelled")
                             break
                         try:
                             ch = client.get_channel(ch_id)
-                            if ch: await ch.send(str(i))
-                            await asyncio.sleep(1)
+                            if ch: 
+                                await ch.send(str(i))
+                            # Break 1 second delay into smaller chunks
+                            for _ in range(10):
+                                if asyncio.current_task().cancelled():
+                                    return
+                                await asyncio.sleep(0.1)
+                        except asyncio.CancelledError:
+                            print(f"Countdown task for {ch_id} caught CancelledError")
+                            raise
                         except:
                             await asyncio.sleep(2)
                 except asyncio.CancelledError:
-                    print(f"Countdown task for channel {ch_id} was cancelled")
-                    raise
+                    print(f"Countdown task for {ch_id} finally cancelled")
+                    return
             if ch_id in count_tasks:
                 count_tasks[ch_id].cancel()
                 try:
@@ -746,7 +768,7 @@ async def on_message(message):
             count_tasks[ch_id] = asyncio.create_task(cdown())
             await message.channel.send(f"Countdown started in {ch_id} from {start}")
         except Exception as e:
-            await message.channel.send(f"Usage: .count <channel> <start> (Error: {e})")
+            await message.channel.send(f"Usage: .count <channel> <start>\nError: {e}")
     
     elif cmd == ".stopac":
         if not count_tasks:
@@ -757,6 +779,9 @@ async def on_message(message):
             if not task.done():
                 task.cancel()
                 count += 1
+                print(f"Cancelled task for channel {ch_id}")
+        # Wait a moment for tasks to actually cancel
+        await asyncio.sleep(0.5)
         count_tasks.clear()
         await message.channel.send(f"Stopped {count} counting task(s).")
 
